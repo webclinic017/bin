@@ -26,4 +26,17 @@ public class MaximumSumSubarraySizeK {
         return res;
 	}
 
+//	public static int maximumSumSubarraySizeKAV(int[] arr, int k) {
+//		int i = 0, j = 0, sum = 0, max_sum = 0;
+//		while (j < arr.length) {
+//			sum = sum + arr[j];
+//			if (j < arr.length && (j - i + 1) < k) {
+//				j++;
+//			} else if ((j - i + 1) == k) {
+//		           sum += arr[j] - arr[j-k];
+//		           max_sum = Math.max(sum, max_sum);
+//			}
+//		}
+//        return max_sum;
+//	}
 }
