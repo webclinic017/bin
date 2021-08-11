@@ -38,13 +38,17 @@ public class ApplicationSlidingWindow {
 		
 //		String s = "aabbcc";
 //		int k = 3;
-//		// If the length of string is n, then there can be n*(n+1)/2 possible substrings. A simple way 
+//		// Approach 1: If the length of string is n, then there can be n*(n+1)/2 possible substrings. A simple way 
 //		// is to generate all the substring and check each one whether it has exactly k unique characters 
 //		// or not. If we apply this brute force, it would take O(n2) to generate all substrings and O(n) 
 //		// to do a check on each one. Thus overall it would go O(n3). To generate all the substrings, run
 //		// two for loops with i, j from 0 to arr.length.
-//		// We can further improve this solution by creating a hash table and while generating the substrings, 
-//		// check the number of unique characters using that hash table. Thus it would improve up to O(n2).
+//		// Approach 2: We can further improve this solution by creating a hash table and while generating the
+//		// substrings, check the number of unique characters using that hash table. Thus it would improve up to O(n2).
+//		// Approach 3: The problem can be solved in O(n). Idea is to maintain a window and add elements to the 
+//		// window till it contains less or equal k, update our result if required while doing so. If unique 
+//		// elements exceeds than required in window, start removing the elements from left side. Considering 
+//		// function “isValid()” takes constant time, time complexity of this solution is O(n).
 //		String subString = LongestSubstringWithKUniqueCharacters.longestSubstringWithKUniqueCharacters(s, k);
 //		System.out.println("subString: " + subString);
 		
@@ -60,7 +64,15 @@ public class ApplicationSlidingWindow {
 //		String subString = LongestSubstringWithoutRepeatingCharacters.linearTime(str);
 //		System.out.println("subString: " + subString);
 		
-		
+//		// ########################################## PICK TOYS #############################################
+//		// A boy goes to a mall with his mother. There are toys on a shelf in line. He wants to pick maximum
+//		// number of toys. His mother puts two conditions: first is he has to pick the toys in a row only and
+//		// second is he can pick atmost two types of toys. How many maximum number of toys will he be able
+//		// to pick. The row of the shelf is as follows:
+//		// car car gun animal animal animal gun car
+//		String string = "abaccab";
+//		String subString = LongestSubstringWithKUniqueCharacters.longestSubstringWithKUniqueCharacters(string, 2);
+//		System.out.println("subString: " + subString);
 	}
 
 	public static void printArray(int[] arr) {
