@@ -73,6 +73,11 @@ public class ApplicationSlidingWindow {
 //		String string = "abaccab";
 //		String subString = LongestSubstringWithKUniqueCharacters.longestSubstringWithKUniqueCharacters(string, 2);
 //		System.out.println("subString: " + subString);
+		
+		String string = "abaccab";
+		String pattern = "cca";
+		String subString = SmallestWindowContainingAllCharacters.smallestWindowContainingAllCharacters(string, pattern);
+		System.out.println("subString: " + subString);
 	}
 
 	public static void printArray(int[] arr) {
