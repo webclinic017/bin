@@ -1,0 +1,3 @@
+# exclude everything except directory in str-2 except src
+/xxx/str-2/*
+!/xxx/str-2/src
