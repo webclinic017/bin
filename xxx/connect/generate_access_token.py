@@ -20,7 +20,7 @@ def main(argv):
 
     if request_token == '':
         print("request token required..")
-        print('generate_access_token.py -rt <request_token>')
+        print('generate_access_token.py -r <request_token>')
         sys.exit(2)
 
     api_key = open(local_data + '/kite_api_key.txt', 'r').read()
