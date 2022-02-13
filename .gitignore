@@ -1,3 +1,4 @@
 # exclude __pycache__
 /xxx/alpha/util/__pycache__/*
+/xxx/alpha/breakout_trendline_1/__pycache__/*
 #!/xxx/str-2/src
