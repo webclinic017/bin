@@ -21,6 +21,7 @@ def get_scan_dates_array(end_date, previous_number_of_market_days):
         if len(temp_scan_date_array) == previous_number_of_market_days:
             break
         day = scan_end_date - timedelta(days=i)
+        # Checking that if the date is a market day
         if market_days.is_a_market_day_with_conn(conn, str(day)):
             temp_scan_date_array.append(str(day))
     for scan_date in reversed(temp_scan_date_array):

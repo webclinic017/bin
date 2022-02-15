@@ -151,7 +151,7 @@ def print_upper_trend_lines(records, stock_symbol, nse_token, data_start_date, d
             utl_crossed_today = is_utl_crossed_today(sdf, utl_details)
             if not utl_crossed_today:
                 continue
-            if not sdf['volume'][sdf.index.size - 1] > avg_volume * strategy_constant.avg_volume_multiplier:
+            if not sdf['volume'][sdf.index.size - 1] >= avg_volume * strategy_constant.avg_volume_multiplier:
                 continue
             utl_details_array.append(utl_details)
 
