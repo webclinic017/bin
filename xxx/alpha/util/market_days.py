@@ -102,16 +102,11 @@ def market_days_rows(conn, day):
 def is_a_market_day_with_conn(conn, day):
     rows = market_days_rows(conn, day)
     if not rows:
-        today_date = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+        today_date = datetime.today().strftime('%Y-%m-%d')
         now_hour = datetime.today().strftime('%H')
-        print("***************************************************************************")
-        print("day: " + day + ", today_date: " + today_date + ", now_hour: " + now_hour)
-        if today_date == day:
-            print("today_date == day")
-            if int(now_hour) < 10:
-                print("int(now_hour) < 10")
-                return False
-        print("***************************************************************************")
+        if today_date == day and int(now_hour) < 10:
+            # print("False")
+            return False
         scan_date_array = fill_scan_date_array_from_the_day(day)
         populate_db_table_market_days(scan_date_array)
         new_conn = connect.mysql_connection()

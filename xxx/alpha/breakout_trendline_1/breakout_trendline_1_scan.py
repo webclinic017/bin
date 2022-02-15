@@ -11,19 +11,22 @@ import connect
 import scan_dates
 import scan_stocks
 import pandas as pd
+import multiprocessing
 import strategy_constant
 from stockstats import StockDataFrame
 
 kite = connect.get_kite_connect_obj()
 local_data = open('../../connect/base_path/local_data.txt', 'r').read()
 
+print("multiprocessing.cpu_count(): " + str(multiprocessing.cpu_count()))
 today_date = datetime.today().strftime('%Y-%m-%d')
 number_of_back_market_days = strategy_constant.number_of_days_for_backtest
 # scan_dates_array = ['2021-09-23']
 scan_dates_array = scan_dates.get_scan_dates_array(today_date, number_of_back_market_days)
 # print(scan_dates_array)
-scan_stocks_array = scan_stocks.get_scan_stocks_array(strategy_constant.scan_stocks_category_array, 5)
-print(scan_stocks_array)
+scan_stocks_array = strategy_constant.scan_stocks_array
+# scan_stocks_array = scan_stocks.get_scan_stocks_array(strategy_constant.scan_stocks_category_array, 50)
+# print(scan_stocks_array)
 
 
 def print_top(data_start_date, data_end_date, scan_stock):
@@ -163,70 +166,123 @@ def print_upper_trend_lines(records, stock_symbol, nse_token, data_start_date, d
                 continue
             utl_details_array.append(utl_details)
 
-    # print()
-    # print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-    # print()
-    for temp_utl_details in utl_details_array:
-        print("------------------------------------------------------------------------------------------------------------------------------------------------------")
-        print("symbol: " + method_symbol + ", date: " + method_data_end_date)
-        print("-------------------------------------------------------------------------------------------------------")
-        print(temp_utl_details)
-        print("#######################################################################################################")
-        print("######################################################################################################################################################")
-        print()
-    # print("sdf.index.size: " + str(sdf.index.size))
-    # print("total_utls: " + str(len(utl_details_array)))
+    # for temp_utl_details in utl_details_array:
+    #     print("------------------------------------------------------------------------------------------------------------------------------------------------------")
+    #     print("symbol: " + method_symbol + ", date: " + method_data_end_date)
+    #     print("-------------------------------------------------------------------------------------------------------")
+    #     print(temp_utl_details)
+    #     print("#######################################################################################################")
+    #     print("######################################################################################################################################################")
+    #     print()
 
 
-print("scan_dates_array: " + str(len(scan_dates_array)))
-print("scan_stocks_array: " + str(len(scan_stocks_array)))
-dates_itr = 0
-thread_itr = 0
-for scan_date in scan_dates_array:
-    dates_itr = dates_itr + 1
-    thread_itr = 0
-    method_parameters_array = []
-    historical_data_thread_array = []
-    for scan_stock in scan_stocks_array:
-        thread_itr = thread_itr + 1
-        print("date_itr: " + str(dates_itr) + ", stock_itr: " + str(thread_itr) + ", date: " + scan_date + ", stock: " + scan_stock[0])
-        data_end_date = date(int(scan_date[0:4]), int(scan_date[5:7]), int(scan_date[8:10]))
-        data_start_date = data_end_date - timedelta(days=(strategy_constant.number_of_days_prev_data_required - 1))
-        # print_top(data_start_date, data_end_date, scan_stock)
+job_details_array = []
+lot_index_details_array = []
 
-        method_parameters = {
-            "symbol" : scan_stock[0],
-            "nse_token" : scan_stock[1],
-            "data_start_date" : str(data_start_date),
-            "data_end_date" : str(data_end_date)
+
+def populate_job_array():
+    for scan_date in scan_dates_array:
+        for scan_stock in scan_stocks_array:
+            job = {
+                "scan_date": scan_date,
+                "symbol": scan_stock[0],
+                "nse_token": scan_stock[1]
+            }
+            job_details_array.append(job)
+
+
+def populate_job_array_and_lot_index_array():
+    populate_job_array()
+    total_number_of_jobs = len(job_details_array)
+    number_of_lots = int(total_number_of_jobs / strategy_constant.number_of_jobs_in_one_lot)
+    for lot_num in range(0, number_of_lots, 1):
+        lot_index_details = {
+            "lot_min_index" : strategy_constant.number_of_jobs_in_one_lot * lot_num,
+            "lot_max_index" : (strategy_constant.number_of_jobs_in_one_lot * (lot_num + 1)) - 1
         }
-        method_parameters_array.append(method_parameters)
-        historical_data_thread = thread.ThreadWithReturnValue(target=kite.historical_data, args=(scan_stock[1], str(data_start_date), str(data_end_date), 'day'))
-        historical_data_thread.start()
-        historical_data_thread_array.append(historical_data_thread)
-        time.sleep(0.30)
+        lot_index_details_array.append(lot_index_details)
+    jobs_in_last_lot = total_number_of_jobs % strategy_constant.number_of_jobs_in_one_lot
+    if jobs_in_last_lot > 0:
+        lot_index_details = {
+            "lot_min_index" : strategy_constant.number_of_jobs_in_one_lot * number_of_lots,
+            "lot_max_index" : total_number_of_jobs - 1
+        }
+        lot_index_details_array.append(lot_index_details)
 
-        # print_bottom()
 
-    start_time = time.time()
-    method_itr = 0
-    # utl_thread_array = []
-    for historical_data_thread in historical_data_thread_array:
-        records = historical_data_thread.join()
-        method_symbol = method_parameters_array[method_itr]['symbol']
-        method_nse_token = method_parameters_array[method_itr]['nse_token']
-        method_data_start_date = method_parameters_array[method_itr]['data_start_date']
-        method_data_end_date = method_parameters_array[method_itr]['data_end_date']
+def main():
+    populate_job_array_and_lot_index_array()
+    time_till_now = 0
+    lot_number = 0
+    for lot_index_details in lot_index_details_array:
+        lot_number = lot_number + 1
+        lot_start_time = time.time()
+        lot_min_index = lot_index_details['lot_min_index']
+        lot_max_index = lot_index_details['lot_max_index']
+        method_parameters_array = []
+        historical_data_thread_array = []
+        for job_details_itr in range(lot_min_index, (lot_max_index + 1), 1):
+            scan_date = job_details_array[job_details_itr]['scan_date']
+            symbol = job_details_array[job_details_itr]['symbol']
+            nse_token = job_details_array[job_details_itr]['nse_token']
+            print("scan_date: " + scan_date + ", symbol: " + symbol)
 
-        print("method_start...: " + str(method_itr))
-        print_upper_trend_lines(records, method_symbol, method_nse_token, method_data_start_date, method_data_end_date)
-        # utl_thread = thread.ThreadWithReturnValue(target=print_upper_trend_lines, args=(records, method_symbol, method_nse_token, method_data_start_date, method_data_end_date))
-        print("method_end=====: " + str(method_itr))
+            data_end_date = date(int(scan_date[0:4]), int(scan_date[5:7]), int(scan_date[8:10]))
+            data_start_date = data_end_date - timedelta(days=(strategy_constant.number_of_days_prev_data_required - 1))
 
-        method_itr = method_itr + 1
-    print("method_itr: " + str(method_itr))
-    print("dates_itr: " + str(dates_itr))
-    print("thread_itr: " + str(thread_itr))
-    end_time = time.time()
-    print("scan_date: " + scan_date + ", time consumed to run: " + str(end_time - start_time))
-    print()
+            method_parameters = {
+                "symbol" : symbol,
+                "nse_token" : nse_token,
+                "data_start_date" : str(data_start_date),
+                "data_end_date" : str(data_end_date)
+            }
+            method_parameters_array.append(method_parameters)
+            historical_data_thread = thread.ThreadWithReturnValue(target=kite.historical_data, args=(nse_token, str(data_start_date), str(data_end_date), 'day'))
+            historical_data_thread.start()
+            historical_data_thread_array.append(historical_data_thread)
+            time.sleep(0.30)
+
+            # print_bottom()
+
+        start_time = time.time()
+        method_itr = 0
+        utl_thread_array = []
+        for historical_data_thread in historical_data_thread_array:
+            records = historical_data_thread.join()
+            method_symbol = method_parameters_array[method_itr]['symbol']
+            method_nse_token = method_parameters_array[method_itr]['nse_token']
+            method_data_start_date = method_parameters_array[method_itr]['data_start_date']
+            method_data_end_date = method_parameters_array[method_itr]['data_end_date']
+
+            print("method_start...: " + str(method_itr))
+            # print_upper_trend_lines(records, method_symbol, method_nse_token, method_data_start_date, method_data_end_date)
+            utl_thread = multiprocessing.Process(target=print_upper_trend_lines, args=(records, method_symbol, method_nse_token, method_data_start_date, method_data_end_date))
+            utl_thread.start()
+            utl_thread_array.append(utl_thread)
+            print("method_end=====: " + str(method_itr))
+            method_itr = method_itr + 1
+        # print("method_itr: " + str(method_itr))
+        # print("dates_itr: " + str(dates_itr))
+        # print("thread_itr: " + str(thread_itr))
+
+        join_itr = 0
+        for utl_thread in utl_thread_array:
+            print("join_itr start...: " + str(join_itr))
+            utl_thread.join()
+            print("join_itr end=====: " + str(join_itr))
+            join_itr = join_itr + 1
+
+        end_time = time.time()
+        print("scan_date: " + scan_date + ", time consumed to run: " + str(end_time - start_time))
+        print()
+        lot_end_time = time.time()
+        lot_time_elapsed = lot_end_time - lot_start_time
+        time_till_now = time_till_now + lot_time_elapsed
+        print("-------------------------------------------------------------------------------")
+        time_taken_per_lot = int(time_till_now / lot_number)
+        print("lot_number: " + str(lot_number) + ", total_time_till_now: " + str(int(time_till_now)) + ", time_taken_per_lot: " + str(time_taken_per_lot) + ", total_number_of_lots: " + str(len(lot_index_details_array)))
+        print("-------------------------------------------------------------------------------")
+
+
+if __name__ == "__main__":
+    main()
