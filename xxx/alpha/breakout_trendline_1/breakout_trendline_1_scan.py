@@ -20,7 +20,8 @@ local_data = open('../../connect/base_path/local_data.txt', 'r').read()
 today_date = datetime.today().strftime('%Y-%m-%d')
 number_of_back_market_days = strategy_constant.number_of_days_for_backtest
 scan_dates_array = scan_dates.get_scan_dates_array(today_date, number_of_back_market_days)
-scan_stocks_array = scan_stocks.get_scan_stocks_array(strategy_constant.scan_stocks_category_array, 10)
+# scan_stocks_array = strategy_constant.scan_stocks_array
+scan_stocks_array = scan_stocks.get_scan_stocks_array(strategy_constant.scan_stocks_category_array, 1)
 
 
 def print_top(data_start_date, data_end_date, scan_stock):
@@ -170,10 +171,18 @@ def print_upper_trend_lines(records, stock_symbol, nse_token, data_start_date, d
     # print("total_utls: " + str(len(utl_details_array)))
 
 
-method_parameters_array = []
-historical_data_thread_array = []
+print("scan_dates_array: " + str(len(scan_dates_array)))
+print("scan_stocks_array: " + str(len(scan_stocks_array)))
+dates_itr = 0
+thread_itr = 0
 for scan_date in scan_dates_array:
+    dates_itr = dates_itr + 1
+    thread_itr = 0
+    method_parameters_array = []
+    historical_data_thread_array = []
     for scan_stock in scan_stocks_array:
+        thread_itr = thread_itr + 1
+        print("date_itr: " + str(dates_itr) + ", stock_itr: " + str(thread_itr))
         data_end_date = date(int(scan_date[0:4]), int(scan_date[5:7]), int(scan_date[8:10]))
         data_start_date = data_end_date - timedelta(days=(strategy_constant.number_of_days_prev_data_required - 1))
         # print_top(data_start_date, data_end_date, scan_stock)
@@ -188,23 +197,23 @@ for scan_date in scan_dates_array:
         historical_data_thread = thread.ThreadWithReturnValue(target=kite.historical_data, args=(scan_stock[1], str(data_start_date), str(data_end_date), 'day'))
         historical_data_thread.start()
         historical_data_thread_array.append(historical_data_thread)
-        time.sleep(0.15)
+        time.sleep(0.30)
 
         # print_bottom()
 
-method_itr = 0
-for historical_data_thread in historical_data_thread_array:
-    records = historical_data_thread.join()
-    method_symbol = method_parameters_array[method_itr]['symbol']
-    method_nse_token = method_parameters_array[method_itr]['nse_token']
-    method_data_start_date = method_parameters_array[method_itr]['data_start_date']
-    method_data_end_date = method_parameters_array[method_itr]['data_end_date']
-    # print("------------------------------------------------------------------------------------------------------------------------------------------------------")
-    # print("symbol: " + method_symbol + ", date: " + method_data_end_date)
-    # print("-------------------------------------------------------------------------------------------------------")
-    print_upper_trend_lines(records, method_symbol, method_nse_token, method_data_start_date, method_data_end_date)
-    # print("#######################################################################################################")
-    # print("######################################################################################################################################################")
-    # print()
-    method_itr = method_itr + 1
-print("method_itr: " + str(method_itr))
+    method_itr = 0
+    for historical_data_thread in historical_data_thread_array:
+        records = historical_data_thread.join()
+        method_symbol = method_parameters_array[method_itr]['symbol']
+        method_nse_token = method_parameters_array[method_itr]['nse_token']
+        method_data_start_date = method_parameters_array[method_itr]['data_start_date']
+        method_data_end_date = method_parameters_array[method_itr]['data_end_date']
+
+        print("method_start...: " + str(method_itr))
+        print_upper_trend_lines(records, method_symbol, method_nse_token, method_data_start_date, method_data_end_date)
+        print("method_end=====: " + str(method_itr))
+
+        method_itr = method_itr + 1
+    print("method_itr: " + str(method_itr))
+    print("dates_itr: " + str(dates_itr))
+    print("thread_itr: " + str(thread_itr))
