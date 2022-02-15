@@ -19,9 +19,11 @@ local_data = open('../../connect/base_path/local_data.txt', 'r').read()
 
 today_date = datetime.today().strftime('%Y-%m-%d')
 number_of_back_market_days = strategy_constant.number_of_days_for_backtest
+# scan_dates_array = ['2021-09-23']
 scan_dates_array = scan_dates.get_scan_dates_array(today_date, number_of_back_market_days)
-# scan_stocks_array = strategy_constant.scan_stocks_array
-scan_stocks_array = scan_stocks.get_scan_stocks_array(strategy_constant.scan_stocks_category_array, 1)
+# print(scan_dates_array)
+scan_stocks_array = scan_stocks.get_scan_stocks_array(strategy_constant.scan_stocks_category_array, 5)
+print(scan_stocks_array)
 
 
 def print_top(data_start_date, data_end_date, scan_stock):
@@ -68,28 +70,33 @@ def is_utl_crossed_today(sdf, utl_details):
     return False
 
 
+def get_avg_close_avg_vol(stock_symbol, sdf, i):
+    sum_close = 0
+    sum_volume = 0
+    number_of_days = 0
+    for itr in range(i, sdf.index.size - 1):
+        number_of_days = number_of_days + 1
+        sum_close = sum_close + sdf['close'][itr]
+        sum_volume = sum_volume + sdf['volume'][itr]
+    # Here number_of_days can't be zero as possible max value of i is (sdf.index.size - 3) and
+    # this loop is running between i and (sdf.index.size - 2).
+    avg_close = sum_close / number_of_days
+    avg_vol = sum_volume / number_of_days
+    return [avg_close, avg_vol]
+
+
 def print_upper_trend_lines(records, stock_symbol, nse_token, data_start_date, data_end_date):
     df = pd.DataFrame(records)
     sdf = StockDataFrame.retype(df)
     utl_details_array = []
     # Here we are not checking this till last day as last day will be checked for breakout.
     for i in range(0, sdf.index.size - 2):
+        avg_close_avg_vol = get_avg_close_avg_vol(stock_symbol, sdf, i)
+        avg_close = avg_close_avg_vol[0]
+        avg_volume = avg_close_avg_vol[1]
         for j in range(i + 1, sdf.index.size - 1):
             utl_left_touching_date = str(sdf.index[i])[0:10]
             utl_right_touching_date = str(sdf.index[j])[0:10]
-
-            sum_close = 0
-            sum_volume = 0
-            number_of_days = 0
-            for itr in range(i, sdf.index.size - 1):
-                number_of_days = number_of_days + 1
-                sum_close = sum_close + sdf['close'][itr]
-                sum_volume = sum_volume + sdf['volume'][itr]
-            # Here number_of_days can't be zero as possible max value of i is (sdf.index.size - 3) and
-            # this loop is running between i and (sdf.index.size - 2).
-            avg_close = sum_close / number_of_days
-            avg_volume = sum_volume / number_of_days
-
             days_diff = j - i
             left_high = sdf['high'][i]
             right_high = sdf['high'][j]
@@ -134,11 +141,11 @@ def print_upper_trend_lines(records, stock_symbol, nse_token, data_start_date, d
             utl_details = {
                 "stock" : stock_symbol,
                 "data_start_date" : data_start_date,
+                "utl_left_touching_date" : utl_left_touching_date,
+                "utl_right_touching_date" : utl_right_touching_date,
                 "data_end_date" : data_end_date,
                 "i" : i,
                 "j" : j,
-                "utl_left_touching_date" : utl_left_touching_date,
-                "utl_right_touching_date" : utl_right_touching_date,
                 "avg_close" : avg_close,
                 "avg_volume" : avg_volume,
                 "today_volume" : sdf['volume'][sdf.index.size - 1],
@@ -182,7 +189,7 @@ for scan_date in scan_dates_array:
     historical_data_thread_array = []
     for scan_stock in scan_stocks_array:
         thread_itr = thread_itr + 1
-        print("date_itr: " + str(dates_itr) + ", stock_itr: " + str(thread_itr))
+        print("date_itr: " + str(dates_itr) + ", stock_itr: " + str(thread_itr) + ", date: " + scan_date + ", stock: " + scan_stock[0])
         data_end_date = date(int(scan_date[0:4]), int(scan_date[5:7]), int(scan_date[8:10]))
         data_start_date = data_end_date - timedelta(days=(strategy_constant.number_of_days_prev_data_required - 1))
         # print_top(data_start_date, data_end_date, scan_stock)
@@ -201,7 +208,9 @@ for scan_date in scan_dates_array:
 
         # print_bottom()
 
+    start_time = time.time()
     method_itr = 0
+    # utl_thread_array = []
     for historical_data_thread in historical_data_thread_array:
         records = historical_data_thread.join()
         method_symbol = method_parameters_array[method_itr]['symbol']
@@ -211,9 +220,13 @@ for scan_date in scan_dates_array:
 
         print("method_start...: " + str(method_itr))
         print_upper_trend_lines(records, method_symbol, method_nse_token, method_data_start_date, method_data_end_date)
+        # utl_thread = thread.ThreadWithReturnValue(target=print_upper_trend_lines, args=(records, method_symbol, method_nse_token, method_data_start_date, method_data_end_date))
         print("method_end=====: " + str(method_itr))
 
         method_itr = method_itr + 1
     print("method_itr: " + str(method_itr))
     print("dates_itr: " + str(dates_itr))
     print("thread_itr: " + str(thread_itr))
+    end_time = time.time()
+    print("scan_date: " + scan_date + ", time consumed to run: " + str(end_time - start_time))
+    print()
