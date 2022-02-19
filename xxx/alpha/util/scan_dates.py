@@ -3,7 +3,7 @@ import market_days
 from datetime import date, datetime, timedelta
 
 
-def get_scan_dates_array(end_date, previous_number_of_market_days):
+def get_valid_market_scan_dates_array(end_date, previous_number_of_market_days):
     scan_dates_array = []
     number_of_days_to_consider = 0
     if previous_number_of_market_days <= 20:
