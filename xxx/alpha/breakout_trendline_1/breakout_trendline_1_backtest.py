@@ -32,23 +32,18 @@ def backtest(conn, stock_symbol, scan_date):
     print()
     print("stock_symbol: " + stock_symbol)
     print("scan_date_day: " + str(scan_date_day))
-    is_market_day_found = False
-    next_market_day_after_breakout = ''
-    next_market_day_itr = 1
-    while not is_market_day_found:
-        next_day = scan_date_day + timedelta(days=next_market_day_itr)
-        print("next_day: " + str(next_day))
-        if market_days.is_a_market_day_with_conn(conn, str(next_day)):
-            next_market_day_after_breakout = str(next_day)
-            is_market_day_found = True
-        next_market_day_itr = next_market_day_itr + 1
+    next_market_day_after_breakout = market_days.next_market_day_without_conn(scan_date)
     scan_date_day_minus_hundred = scan_date_day - timedelta(days=100)
     print("scan_date_day_minus_hundred: " + str(scan_date_day_minus_hundred))
     print("today_date: " + today_date)
+    next_of_scan_date_day_minus_hundred = market_days.next_market_day_without_conn(str(scan_date_day_minus_hundred))
+    prev_of_today_date = market_days.prev_market_day_without_conn(today_date)
     records = kite.historical_data(nse_token, scan_date_day_minus_hundred, today_date, 'day')
     df = pd.DataFrame(records)
     sdf = StockDataFrame.retype(df)
     print(sdf)
+    first_sdf_date = str(sdf.index[0])[0:10]
+    last_sdf_date = str(sdf.index[sdf.index.size - 1])[0:10]
     print("next_market_day_after_breakout: " + next_market_day_after_breakout)
     sdf_close_8_sma = sdf['close_8_sma']
     sdf_open = sdf['open']
@@ -72,6 +67,8 @@ def backtest(conn, stock_symbol, scan_date):
     initial_stoploss = stoploss
     print("initial_stoploss: " + str(stoploss))
     should_be_bought = True
+    if next_of_scan_date_day_minus_hundred != first_sdf_date and prev_of_today_date != last_sdf_date:
+        should_be_bought = False
     print("sdf_open[start_itr]: " + str(sdf_open[start_itr]))
     if sdf_open[start_itr] < stoploss:
         should_be_bought = False

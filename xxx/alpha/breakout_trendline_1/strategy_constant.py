@@ -1,13 +1,15 @@
-categories_to_be_scanned = [5, 4]
-number_of_days_for_backtest = 100
+number_of_days_for_backtest = 248
+number_of_jobs_in_one_lot = 20
 number_of_days_prev_data_required = 365
-# number_of_days_prev_data_required = 365 * 1
 scan_stocks_category_array = [5, 4, 3, 2]
 scan_stocks_array = [['BAJAJ-AUTO', '4267265']]
-max_percentage_change_per_day = 0.25
-avg_volume_multiplier = 1.5
-number_of_jobs_in_one_lot = 20
-min_wait_days_for_breakout = 20
-max_allowed_upper_wick_size = 0.2
-allowed_fraction_for_buying = 1.1
 amount_for_buying_one_stock = 100000
+
+# parameters of backtest script
+allowed_fraction_for_buying = 1.2
+
+# Parameters of scan script
+max_percentage_change_per_day = 0.25
+avg_volume_multiplier = 1
+min_wait_days_for_breakout = 20
+max_allowed_upper_wick_size = 0.5

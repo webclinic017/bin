@@ -21,7 +21,7 @@ local_data = open('../../connect/base_path/local_data.txt', 'r').read()
 
 print("multiprocessing.cpu_count(): " + str(multiprocessing.cpu_count()))
 print()
-start_date_of_scanning = '2022-01-31'
+start_date_of_scanning = '2021-12-31'
 # start_date_of_scanning = datetime.today().strftime('%Y-%m-%d')
 number_of_back_market_days = strategy_constant.number_of_days_for_backtest
 # scan_dates_array = ['2021-09-27']
@@ -79,13 +79,11 @@ def get_avg_close_avg_vol(stock_symbol, sdf, i):
     return [avg_close, avg_vol]
 
 
-def print_upper_trend_lines(records, method_parameters):
+def print_upper_trend_lines(sdf, method_parameters):
     stock_symbol = method_parameters['symbol']
     nse_token = method_parameters['nse_token']
     data_start_date = method_parameters['data_start_date']
     data_end_date = method_parameters['data_end_date']
-    df = pd.DataFrame(records)
-    sdf = StockDataFrame.retype(df)
     sma_8 = sdf['close_8_sma']
     # print("stock_symbol: " + stock_symbol)
     # print(sma_8)
@@ -113,12 +111,16 @@ def print_upper_trend_lines(records, method_parameters):
             # if its a rejection candle (green - see above condition) then continue
             upper_wick_size = sdf['high'][sdf.index.size - 1] - sdf['close'][sdf.index.size - 1]
             main_body_size = sdf['close'][sdf.index.size - 1] - sdf['open'][sdf.index.size - 1]
+            if main_body_size == 0:
+                continue
             max_allowed_upper_wick_size_today = main_body_size * strategy_constant.max_allowed_upper_wick_size
+            fractional_upper_wick_size = upper_wick_size / main_body_size
             if upper_wick_size > max_allowed_upper_wick_size_today:
                 continue
 
             # Here i is utl_left_touching_date.
             breakout_wait_days = (sdf.index.size - 1) - i
+            wait_days_for_breakout = breakout_wait_days
             if breakout_wait_days < strategy_constant.min_wait_days_for_breakout:
                 continue
 
@@ -186,16 +188,18 @@ def print_upper_trend_lines(records, method_parameters):
             utl_crossed_today = is_utl_crossed_today(sdf, utl_details)
             if not utl_crossed_today:
                 continue
-            if not sdf['volume'][sdf.index.size - 1] >= avg_volume * strategy_constant.avg_volume_multiplier:
+            volume_multiplier = sdf['volume'][sdf.index.size - 1] / avg_volume
+            if not volume_multiplier >= strategy_constant.avg_volume_multiplier:
                 continue
+            print("stock_symbol: " + stock_symbol + ", scan_date: " + data_end_date + ", avg_volume: " + str(avg_volume) + ", breakout_volume: " + str(sdf['volume'][sdf.index.size - 1]) + ", volume_multiplier: " + str(volume_multiplier))
             utl_found = True
             conn = connect.mysql_connection()
             cursor = conn.cursor()
-            insert_query = "insert into breakout_trendline_1_details (stock_symbol, scan_date, utl_left_touching_date, utl_right_touching_date, utl_left_touching_value, utl_right_touching_value, percentage_high_diff_per_day, avg_close, avg_volume, today_utl, today_open, today_close, today_high, today_low, today_volume) values ('" + stock_symbol + "', '" + data_end_date + "', '" + utl_left_touching_date + "', '" + utl_right_touching_date + "', '" + str(
-                utl_points_array[i]) + "', '" + str(utl_points_array[j]) + "', '" + str(
-                percentage_high_diff_per_day) + "', '" + str(avg_close) + "', '" + str(avg_volume) + "', '" + str(
+            insert_query = "insert into breakout_trendline_1_details (stock_symbol, scan_date, utl_left_touching_date, utl_right_touching_date, utl_left_touching_value, utl_right_touching_value, avg_close, avg_volume, today_utl, today_open, today_close, today_high, today_low, today_volume, percentage_change_per_day, volume_multiplier, wait_days_for_breakout, upper_wick_size) values ('" + stock_symbol + "', '" + data_end_date + "', '" + utl_left_touching_date + "', '" + utl_right_touching_date + "', '" + str(
+                utl_points_array[i]) + "', '" + str(utl_points_array[j]) + "', '" + str(avg_close) + "', '" + str(avg_volume) + "', '" + str(
                 utl_points_array[sdf.index.size - 1]) + "', '" + str(sdf['open'][sdf.index.size - 1]) + "', '" + str(sdf['close'][sdf.index.size - 1]) + "', '" + str(
-                sdf['high'][sdf.index.size - 1]) + "', '" + str(sdf['low'][sdf.index.size - 1]) + "', '" + str(sdf['volume'][sdf.index.size - 1]) + "');"
+                sdf['high'][sdf.index.size - 1]) + "', '" + str(sdf['low'][sdf.index.size - 1]) + "', '" + str(sdf['volume'][sdf.index.size - 1]) + "', '" + str(
+                percentage_high_diff_per_day) + "', '" + str(volume_multiplier) + "', '" + str(wait_days_for_breakout) + "', '" + str(fractional_upper_wick_size) + "');"
             cursor.execute(insert_query)
             cursor.close()
             conn.commit()
@@ -254,17 +258,28 @@ def main():
                 )
                 selected_jobs_array.append(job_details_array[itr])
 
+        is_data_found_for_scanning = []
         utl_calculation_thread_array = []
         for itr in range(0, len(historical_data_thread_array), 1):
             records = historical_data_thread_array[itr].join()
-            utl_thread = multiprocessing.Process(target=print_upper_trend_lines, args=(records, ult_calculation_method_parameters_array[itr]))
+            df = pd.DataFrame(records)
+            sdf = StockDataFrame.retype(df)
+            if sdf is None or sdf.index.size == 0:
+                is_data_found_for_scanning.append(0)
+            else:
+                is_data_found_for_scanning.append(1)
+            utl_thread = multiprocessing.Process(target=print_upper_trend_lines, args=(sdf, ult_calculation_method_parameters_array[itr]))
             utl_thread.start()
             utl_calculation_thread_array.append(utl_thread)
 
         conn_scanned_stock_insert = connect.mysql_connection()
         for itr in range(0, len(utl_calculation_thread_array), 1):
             utl_calculation_thread_array[itr].join()
-            stock_scanned(conn_scanned_stock_insert, selected_jobs_array[itr]['scan_date'], selected_jobs_array[itr]['symbol'])
+            if is_data_found_for_scanning[itr] == 1:
+                stock_scanned(conn_scanned_stock_insert, selected_jobs_array[itr]['scan_date'], selected_jobs_array[itr]['symbol'])
+            else:
+                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         conn_scanned_stock_insert.close()
 
         lot_end_time = time.time()

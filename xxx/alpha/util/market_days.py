@@ -128,4 +128,43 @@ def is_a_market_day_without_conn(day):
     return is_a_market_day
 
 
-is_a_market_day_without_conn('2022-02-13')
+def next_market_day_with_conn(conn, day_date):
+    day = date(int(day_date[0:4]), int(day_date[5:7]), int(day_date[8:10]))
+    next_market_day = ''
+    is_market_day_found = False
+    next_market_day_itr = 1
+    while not is_market_day_found:
+        next_day = day + timedelta(days=next_market_day_itr)
+        if is_a_market_day_with_conn(conn, str(next_day)):
+            next_market_day = str(next_day)
+            is_market_day_found = True
+        next_market_day_itr = next_market_day_itr + 1
+    return next_market_day
+
+
+def prev_market_day_with_conn(conn, day_date):
+    day = date(int(day_date[0:4]), int(day_date[5:7]), int(day_date[8:10]))
+    prev_market_day = ''
+    is_market_day_found = False
+    prev_market_day_itr = 1
+    while not is_market_day_found:
+        prev_day = day - timedelta(days=prev_market_day_itr)
+        if is_a_market_day_with_conn(conn, str(prev_day)):
+            prev_market_day = str(prev_day)
+            is_market_day_found = True
+        prev_market_day_itr = prev_market_day_itr + 1
+    return prev_market_day
+
+
+def next_market_day_without_conn(day):
+    conn = connect.mysql_connection()
+    next_market_day = next_market_day_with_conn(conn, day)
+    conn.close()
+    return next_market_day
+
+
+def prev_market_day_without_conn(day):
+    conn = connect.mysql_connection()
+    prev_market_day = prev_market_day_with_conn(conn, day)
+    conn.close()
+    return prev_market_day
