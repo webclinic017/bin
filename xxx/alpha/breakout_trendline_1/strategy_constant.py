@@ -5,11 +5,11 @@ scan_stocks_category_array = [5, 4, 3, 2]
 scan_stocks_array = [['BAJAJ-AUTO', '4267265']]
 amount_for_buying_one_stock = 100000
 
-# parameters of backtest script
-allowed_fraction_for_buying = 1.2
-
 # Parameters of scan script
-max_percentage_change_per_day = 0.25
+max_percentage_change_per_day = 0.5
 avg_volume_multiplier = 1
 min_wait_days_for_breakout = 20
-max_allowed_upper_wick_size = 0.5
+max_allowed_upper_wick_size = 1
+
+# parameters of backtest script
+allowed_fraction_for_buying = 1.2

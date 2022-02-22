@@ -221,7 +221,10 @@ def is_already_scanned(cursor, job_details_array, itr):
 def stock_scanned(conn, scan_date, symbol):
     cursor = conn.cursor()
     insert_breakout_trendline_1_scanned = "insert into breakout_trendline_1_scanned (stock_symbol, scan_date) values ('" + symbol + "', '" + scan_date + "');"
-    cursor.execute(insert_breakout_trendline_1_scanned)
+    try:
+        cursor.execute(insert_breakout_trendline_1_scanned)
+    except:
+        print("error occurred during inserting stock: " + symbol + ", date: " + scan_date)
     cursor.close()
     conn.commit()
 
@@ -266,6 +269,7 @@ def main():
             sdf = StockDataFrame.retype(df)
             if sdf is None or sdf.index.size == 0:
                 is_data_found_for_scanning.append(0)
+                # is_data_found_for_scanning.append(1)
             else:
                 is_data_found_for_scanning.append(1)
             utl_thread = multiprocessing.Process(target=print_upper_trend_lines, args=(sdf, ult_calculation_method_parameters_array[itr]))
@@ -278,8 +282,7 @@ def main():
             if is_data_found_for_scanning[itr] == 1:
                 stock_scanned(conn_scanned_stock_insert, selected_jobs_array[itr]['scan_date'], selected_jobs_array[itr]['symbol'])
             else:
-                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! stock_symbol: " + selected_jobs_array[itr]['symbol'] + ", scan_date: " + selected_jobs_array[itr]['scan_date'])
         conn_scanned_stock_insert.close()
 
         lot_end_time = time.time()

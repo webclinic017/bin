@@ -22,11 +22,13 @@ def is_already_backtested(cursor, stock_symbol, scan_date):
 
 def backtest(conn, stock_symbol, scan_date):
     cursor = conn.cursor()
-    select_query = "select symbol, nseToken from equityStocks where symbol = '" + stock_symbol + "';"
+    select_query = "select symbol, nseToken, category from equityStocks where symbol = '" + stock_symbol + "';"
     cursor.execute(select_query)
     nse_token = ''
-    for (symbol, nseToken) in cursor:
+    stock_category = -1
+    for (symbol, nseToken, category) in cursor:
         nse_token = nseToken
+        stock_category = category
     scan_date_day = date(int(scan_date[0:4]), int(scan_date[5:7]), int(scan_date[8:10]))
     print()
     print()
@@ -111,9 +113,9 @@ def backtest(conn, stock_symbol, scan_date):
         print("selling_buying_diff: " + str(selling_buying_days_diff))
     insert_query = ""
     if not should_be_bought:
-        insert_query = "insert into breakout_trendline_1_backtest (stock_symbol, scan_date, should_be_bought) values ('" + stock_symbol + "', '" + scan_date + "', '" + "0" + "');"
+        insert_query = "insert into breakout_trendline_1_backtest (stock_category, stock_symbol, scan_date, should_be_bought) values ('" + str(stock_category) + "', '" + stock_symbol + "', '" + scan_date + "', '" + "0" + "');"
     else:
-        insert_query = "insert into breakout_trendline_1_backtest (stock_symbol, scan_date, should_be_bought, buying_date, buying_8MA, buying_price, quantity, stoploss, selling_date, selling_8MA, selling_price, profit_loss, percentage_profit_loss, waiting_period, percentage_profit_loss_per_day) values ('" + stock_symbol + "', '" + scan_date + "', '" + "1" + "', '" + buying_date + "', '" + str(buying_8MA) + "', '" + str(buying_price) + "', '" + str(quantity) + "', '" + str(initial_stoploss) + "', '" + selling_date + "', '" + str(selling_8MA) + "', '" + str(selling_price) + "', '" + str(profit_loss) + "', '" + str(percentage_profit_loss) + "', '" + str(selling_buying_days_diff) + "', '" + str(round((percentage_profit_loss / selling_buying_days_diff), 2)) + "');"
+        insert_query = "insert into breakout_trendline_1_backtest (stock_category, stock_symbol, scan_date, should_be_bought, buying_date, buying_8MA, buying_price, quantity, stoploss, selling_date, selling_8MA, selling_price, profit_loss, percentage_profit_loss, waiting_period, percentage_profit_loss_per_day) values ('" + str(stock_category) + "', '" + stock_symbol + "', '" + scan_date + "', '" + "1" + "', '" + buying_date + "', '" + str(buying_8MA) + "', '" + str(buying_price) + "', '" + str(quantity) + "', '" + str(initial_stoploss) + "', '" + selling_date + "', '" + str(selling_8MA) + "', '" + str(selling_price) + "', '" + str(profit_loss) + "', '" + str(percentage_profit_loss) + "', '" + str(selling_buying_days_diff) + "', '" + str(round((percentage_profit_loss / selling_buying_days_diff), 2)) + "');"
     cursor.execute(insert_query)
     cursor.close()
     conn.commit()
