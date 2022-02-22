@@ -1,4 +1,5 @@
 # exclude __pycache__
 /xxx/strategies/util/__pycache__/*
 /xxx/strategies/breakout_trendline_1/__pycache__/*
+/xxx/strategies/.idea/*
 #!/xxx/str-2/src
