@@ -4,7 +4,7 @@
 
 from datetime import date, datetime, timedelta
 import sys
-sys.path.append('../util')
+sys.path.append('../../util')
 import time
 import thread
 import connect

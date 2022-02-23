@@ -1,5 +1,5 @@
 import sys
-sys.path.append('../util')
+sys.path.append('../../util')
 import time
 import connect
 

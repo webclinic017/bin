@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta
 from stockstats import StockDataFrame
 import pandas as pd
 import sys
-sys.path.append('../util')
+sys.path.append('../../util')
 import connect
 import market_days
 import strategy_constant
