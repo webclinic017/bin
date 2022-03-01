@@ -17,6 +17,7 @@ from datetime import date, datetime, timedelta
 
 kite = connect.get_kite_connect_obj()
 local_data = open('../../../connect/base_path/local_data.txt', 'r').read()
+logger = connect.get_logger(local_data + '/logs/alpha-1-scan-1.log')
 # scan_stocks_category_array = [5, 4, 3, 2, 1]
 scan_stocks_category_array = [5, 4, 3]
 max_percentage_change_per_day = 0.5
@@ -34,10 +35,10 @@ def is_utl_respected(sdf, utl_details):
         this_index_close = sdf['close'][index]
         this_open_close_max = max(this_index_open, this_index_close)
         if utl_points_array[index] < this_open_close_max:
-            # print("disrespectful_date: " + str(sdf.index[index])[0:10])
-            # print("disrespectful_utl_point: " + str(utl_points_array[index]))
-            # # print(utl_details)
-            # print()
+            # logger.info("disrespectful_date: " + str(sdf.index[index])[0:10])
+            # logger.info("disrespectful_utl_point: " + str(utl_points_array[index]))
+            # # logger.info(utl_details)
+            # logger.info()
             return False
     return True
 
@@ -49,10 +50,10 @@ def is_utl_crossed_today(sdf, utl_details):
     today_close = sdf['close'][today_index]
     # if today_open < utl_points_array[today_index] < today_close:
     if utl_points_array[today_index] < today_close and today_open < today_close:
-        # print("crossed_date: " + str(sdf.index[today_index])[0:10])
-        # print("crossed_utl_point: " + str(utl_points_array[today_index]))
-        # # print(utl_details)
-        # print()
+        # logger.info("crossed_date: " + str(sdf.index[today_index])[0:10])
+        # logger.info("crossed_utl_point: " + str(utl_points_array[today_index]))
+        # # logger.info(utl_details)
+        # logger.info()
         return True
     return False
 
@@ -82,8 +83,8 @@ def print_upper_trend_lines(sdf, method_parameters):
     data_start_date = method_parameters['data_start_date']
     data_end_date = method_parameters['data_end_date']
     sma_8 = sdf['close_8_sma']
-    # print("stock_symbol: " + stock_symbol)
-    # print(sma_8)
+    # logger.info("stock_symbol: " + stock_symbol)
+    # logger.info(sma_8)
     utl_details_array = []
     utl_found = False
     # Here we are not checking this till last day as last day will be checked for breakout.
@@ -140,30 +141,30 @@ def print_upper_trend_lines(sdf, method_parameters):
             utl_points_array[i] = left_high
             utl_points_array[j] = right_high
             if i > 0:
-                # print("i - 1: " + str(i - 1))
+                # logger.info("i - 1: " + str(i - 1))
                 for k in range(i - 1, -1, -1):
-                    # print("k: " + str(k))
+                    # logger.info("k: " + str(k))
                     left_high = left_high - high_diff_per_day
                     utl_points_array[k] = left_high
                     # utl_points_array[k] = round(left_high, 2)
-                # print("")
+                # logger.info("")
             if j < sdf.index.size - 1:
-                # print("j + 1: " + str(j + 1))
+                # logger.info("j + 1: " + str(j + 1))
                 for k in range(j + 1, sdf.index.size, 1):
-                    # print("k: " + str(k))
+                    # logger.info("k: " + str(k))
                     right_high = right_high + high_diff_per_day
                     utl_points_array[k] = right_high
                     # utl_points_array[k] = round(right_high, 2)
-                # print("")
+                # logger.info("")
             if j - i > 1:
                 left_high = sdf['high'][i]
                 right_high = sdf['high'][j]
                 for k in range(i + 1, j, 1):
-                    # print("k: " + str(k))
+                    # logger.info("k: " + str(k))
                     left_high = left_high + high_diff_per_day
                     utl_points_array[k] = left_high
                     # utl_points_array[k] = round(left_high, 2)
-                # print("")
+                # logger.info("")
 
             utl_details = {
                 "stock" : stock_symbol,
@@ -189,7 +190,7 @@ def print_upper_trend_lines(sdf, method_parameters):
             volume_multiplier = sdf['volume'][sdf.index.size - 1] / avg_volume
             if not volume_multiplier >= avg_volume_multiplier:
                 continue
-            print("stock_symbol: " + stock_symbol + ", scan_date: " + data_end_date + ", avg_volume: " + str(avg_volume) + ", breakout_volume: " + str(sdf['volume'][sdf.index.size - 1]) + ", volume_multiplier: " + str(volume_multiplier))
+            logger.info("stock_symbol: " + stock_symbol + ", scan_date: " + data_end_date + ", avg_volume: " + str(avg_volume) + ", breakout_volume: " + str(sdf['volume'][sdf.index.size - 1]) + ", volume_multiplier: " + str(volume_multiplier))
             utl_found = True
             conn = connect.mysql_connection()
             cursor = conn.cursor()
@@ -236,7 +237,7 @@ def print_upper_trend_lines(sdf, method_parameters):
                            str(wait_days_for_breakout) + "', '" + \
                            str(fractional_upper_wick_size) + \
                            "');"
-            # print("insert query: " + insert_query)
+            # logger.info("insert query: " + insert_query)
             cursor.execute(insert_query)
             cursor.close()
             conn.commit()
@@ -261,7 +262,7 @@ def stock_scanned(conn, scan_date, symbol):
     try:
         cursor.execute(insert_breakout_trendline_1_scanned)
     except:
-        print("error occurred during inserting stock: " + symbol + ", date: " + scan_date)
+        logger.info("error occurred during inserting stock: " + symbol + ", date: " + scan_date)
     cursor.close()
     conn.commit()
 
@@ -274,10 +275,10 @@ def main():
     job_and_lot = populate_array.populate_job_array_and_lot_index_array(scan_dates_array, scan_stocks_array)
     job_details_array = job_and_lot['job_details_array']
     lot_index_details_array = job_and_lot['lot_index_details_array']
-    # print("######################################################################################################")
-    # print(lot_index_details_array)
-    # print("######################################################################################################")
-    # print(job_details_array)
+    # logger.info("######################################################################################################")
+    # logger.info(lot_index_details_array)
+    # logger.info("######################################################################################################")
+    # logger.info(job_details_array)
     # return
     time_till_now = 0
     total_lot_number = 0
@@ -328,7 +329,7 @@ def main():
             if is_data_found_for_scanning[itr] == 1:
                 stock_scanned(conn_scanned_stock_insert, selected_jobs_array[itr]['scan_date'], selected_jobs_array[itr]['symbol'])
             else:
-                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! stock_symbol: " + selected_jobs_array[itr]['symbol'] + ", scan_date: " + selected_jobs_array[itr]['scan_date'])
+                logger.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! stock_symbol: " + selected_jobs_array[itr]['symbol'] + ", scan_date: " + selected_jobs_array[itr]['scan_date'])
         conn_scanned_stock_insert.close()
 
         lot_end_time = time.time()
@@ -337,10 +338,9 @@ def main():
         if len(selected_jobs_array) > 0:
             non_false_lot_number = non_false_lot_number + 1
             time_taken_per_lot = int(time_till_now / non_false_lot_number)
-            print("-----------------------------------------------------------------------------------")
-            print("lot_number: " + str(total_lot_number) + ", total_number_of_lots: " + str(len(lot_index_details_array)) + ", time_taken_per_lot: " + str(time_taken_per_lot) + ", remaining_time: " + str((len(lot_index_details_array) - total_lot_number) * time_taken_per_lot))
-            print("###################################################################################")
-            print()
+            logger.info("-----------------------------------------------------------------------------------")
+            logger.info("lot_number: " + str(total_lot_number) + ", total_number_of_lots: " + str(len(lot_index_details_array)) + ", time_taken_per_lot: " + str(time_taken_per_lot) + ", remaining_time: " + str((len(lot_index_details_array) - total_lot_number) * time_taken_per_lot))
+            logger.info("###################################################################################")
 
     cursor.close()
     conn.close()

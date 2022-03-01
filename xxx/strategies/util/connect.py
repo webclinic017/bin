@@ -1,3 +1,4 @@
+import logging
 import mysql.connector as sql
 from mysql.connector import Error
 from kiteconnect import KiteConnect
@@ -19,3 +20,15 @@ def mysql_connection():
     except Error as e:
         print("Error while connecting to MySQL", e)
     return conn
+
+
+def get_logger(log_file_name):
+    # Create and configure logger
+    logging.basicConfig(filename=log_file_name,
+                        format='%(asctime)s:%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S',
+                        level=logging.INFO,
+                        filemode='a+')
+    # Creating an object
+    logger = logging.getLogger()
+    return logger
