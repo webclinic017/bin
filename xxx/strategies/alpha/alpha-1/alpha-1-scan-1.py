@@ -1,8 +1,7 @@
 ##################################################################################
-# should be run at around 4 PM in the evening after market
+# should be run at around eod
 ##################################################################################
 
-from datetime import date, datetime, timedelta
 import sys
 sys.path.append('../../util')
 import time
@@ -12,24 +11,18 @@ import scan_dates
 import scan_stocks
 import pandas as pd
 import multiprocessing
-import strategy_constant
 import populate_array
 from stockstats import StockDataFrame
+from datetime import date, datetime, timedelta
 
 kite = connect.get_kite_connect_obj()
 local_data = open('../../../connect/base_path/local_data.txt', 'r').read()
-
-print("multiprocessing.cpu_count(): " + str(multiprocessing.cpu_count()))
-print()
-start_date_of_scanning = '2021-12-31'
-# start_date_of_scanning = datetime.today().strftime('%Y-%m-%d')
-number_of_back_market_days = strategy_constant.number_of_days_for_backtest
-# scan_dates_array = ['2021-09-27']
-scan_dates_array = scan_dates.get_valid_market_scan_dates_array(start_date_of_scanning, number_of_back_market_days)
-# print(scan_dates_array)
-# scan_stocks_array = strategy_constant.scan_stocks_array
-scan_stocks_array = scan_stocks.get_scan_stocks_array(strategy_constant.scan_stocks_category_array, None)
-# print(scan_stocks_array)
+# scan_stocks_category_array = [5, 4, 3, 2, 1]
+scan_stocks_category_array = [5, 4, 3]
+max_percentage_change_per_day = 0.5
+avg_volume_multiplier = 1
+min_wait_days_for_breakout = 10
+max_allowed_upper_wick_size = 1
 
 
 # is_utl_respected_between (last - 1)th business day and utl_left_touching_date
@@ -64,24 +57,28 @@ def is_utl_crossed_today(sdf, utl_details):
     return False
 
 
-def get_avg_close_avg_vol(stock_symbol, sdf, i):
+def get_avg_close_avg_vol_min_vol(stock_symbol, sdf, i):
     sum_close = 0
     sum_volume = 0
+    min_volume = sys.maxsize
     number_of_days = 0
     for itr in range(i, sdf.index.size - 1):
         number_of_days = number_of_days + 1
         sum_close = sum_close + sdf['close'][itr]
         sum_volume = sum_volume + sdf['volume'][itr]
+        if sdf['volume'][itr] < min_volume:
+            min_volume = sdf['volume'][itr]
     # Here number_of_days can't be zero as possible max value of i is (sdf.index.size - 3) and
     # this loop is running between i and (sdf.index.size - 2).
     avg_close = sum_close / number_of_days
     avg_vol = sum_volume / number_of_days
-    return [avg_close, avg_vol]
+    return [avg_close, avg_vol, min_volume]
 
 
 def print_upper_trend_lines(sdf, method_parameters):
     stock_symbol = method_parameters['symbol']
     nse_token = method_parameters['nse_token']
+    stock_category = method_parameters['stock_category']
     data_start_date = method_parameters['data_start_date']
     data_end_date = method_parameters['data_end_date']
     sma_8 = sdf['close_8_sma']
@@ -93,9 +90,10 @@ def print_upper_trend_lines(sdf, method_parameters):
     for i in range(0, sdf.index.size - 2):
         if utl_found:
             continue
-        avg_close_avg_vol = get_avg_close_avg_vol(stock_symbol, sdf, i)
-        avg_close = avg_close_avg_vol[0]
-        avg_volume = avg_close_avg_vol[1]
+        avg_close_avg_vol_min_vol = get_avg_close_avg_vol_min_vol(stock_symbol, sdf, i)
+        avg_close = avg_close_avg_vol_min_vol[0]
+        avg_volume = avg_close_avg_vol_min_vol[1]
+        min_volume = avg_close_avg_vol_min_vol[2]
         for j in range(i + 1, sdf.index.size - 1):
 
             if utl_found:
@@ -113,7 +111,7 @@ def print_upper_trend_lines(sdf, method_parameters):
             main_body_size = sdf['close'][sdf.index.size - 1] - sdf['open'][sdf.index.size - 1]
             if main_body_size == 0:
                 continue
-            max_allowed_upper_wick_size_today = main_body_size * strategy_constant.max_allowed_upper_wick_size
+            max_allowed_upper_wick_size_today = main_body_size * max_allowed_upper_wick_size
             fractional_upper_wick_size = upper_wick_size / main_body_size
             if upper_wick_size > max_allowed_upper_wick_size_today:
                 continue
@@ -121,7 +119,7 @@ def print_upper_trend_lines(sdf, method_parameters):
             # Here i is utl_left_touching_date.
             breakout_wait_days = (sdf.index.size - 1) - i
             wait_days_for_breakout = breakout_wait_days
-            if breakout_wait_days < strategy_constant.min_wait_days_for_breakout:
+            if breakout_wait_days < min_wait_days_for_breakout:
                 continue
 
             utl_left_touching_date = str(sdf.index[i])[0:10]
@@ -136,7 +134,7 @@ def print_upper_trend_lines(sdf, method_parameters):
             mod_of_percentage_high_diff_per_day = percentage_high_diff_per_day
             if mod_of_percentage_high_diff_per_day < 0:
                 mod_of_percentage_high_diff_per_day = mod_of_percentage_high_diff_per_day * -1
-            if mod_of_percentage_high_diff_per_day > strategy_constant.max_percentage_change_per_day:
+            if mod_of_percentage_high_diff_per_day > max_percentage_change_per_day:
                 continue
             utl_points_array = [None] * sdf.index.size
             utl_points_array[i] = left_high
@@ -189,17 +187,56 @@ def print_upper_trend_lines(sdf, method_parameters):
             if not utl_crossed_today:
                 continue
             volume_multiplier = sdf['volume'][sdf.index.size - 1] / avg_volume
-            if not volume_multiplier >= strategy_constant.avg_volume_multiplier:
+            if not volume_multiplier >= avg_volume_multiplier:
                 continue
             print("stock_symbol: " + stock_symbol + ", scan_date: " + data_end_date + ", avg_volume: " + str(avg_volume) + ", breakout_volume: " + str(sdf['volume'][sdf.index.size - 1]) + ", volume_multiplier: " + str(volume_multiplier))
             utl_found = True
             conn = connect.mysql_connection()
             cursor = conn.cursor()
-            insert_query = "insert into breakout_trendline_1_details (stock_symbol, scan_date, utl_left_touching_date, utl_right_touching_date, utl_left_touching_value, utl_right_touching_value, avg_close, avg_volume, today_utl, today_open, today_close, today_high, today_low, today_volume, percentage_change_per_day, volume_multiplier, wait_days_for_breakout, upper_wick_size) values ('" + stock_symbol + "', '" + data_end_date + "', '" + utl_left_touching_date + "', '" + utl_right_touching_date + "', '" + str(
-                utl_points_array[i]) + "', '" + str(utl_points_array[j]) + "', '" + str(avg_close) + "', '" + str(avg_volume) + "', '" + str(
-                utl_points_array[sdf.index.size - 1]) + "', '" + str(sdf['open'][sdf.index.size - 1]) + "', '" + str(sdf['close'][sdf.index.size - 1]) + "', '" + str(
-                sdf['high'][sdf.index.size - 1]) + "', '" + str(sdf['low'][sdf.index.size - 1]) + "', '" + str(sdf['volume'][sdf.index.size - 1]) + "', '" + str(
-                percentage_high_diff_per_day) + "', '" + str(volume_multiplier) + "', '" + str(wait_days_for_breakout) + "', '" + str(fractional_upper_wick_size) + "');"
+            insert_query = "insert into alpha_1_filtered (" \
+                           "stock_category, " \
+                           "stock_symbol, " \
+                           "breakout_date, " \
+                           "utl_left_touching_date, " \
+                           "utl_right_touching_date, " \
+                           "utl_left_touching_high, " \
+                           "utl_right_touching_high, " \
+                           "percentage_change_per_day, " \
+                           "breakout_utl, " \
+                           "breakout_open, " \
+                           "breakout_close, " \
+                           "breakout_high, " \
+                           "breakout_low, " \
+                           "breakout_volume, " \
+                           "breakout_sma8, " \
+                           "min_volume_between_utl_left_and_breakout, " \
+                           "avg_volume_between_utl_left_and_breakout, " \
+                           "volume_multiplier, " \
+                           "wait_days_for_breakout, " \
+                           "breakout_upper_wick_size" \
+                           ") values ('" + \
+                           stock_category + "', '" + \
+                           stock_symbol + "', '" + \
+                           data_end_date + "', '" + \
+                           utl_left_touching_date + "', '" + \
+                           utl_right_touching_date + "', '" + \
+                           str(utl_points_array[i]) + "', '" + \
+                           str(utl_points_array[j]) + "', '" + \
+                           str(percentage_high_diff_per_day) + "', '" + \
+                           str(utl_points_array[sdf.index.size - 1]) + "', '" + \
+                           str(sdf['open'][sdf.index.size - 1]) + "', '" + \
+                           str(sdf['close'][sdf.index.size - 1]) + "', '" + \
+                           str(sdf['high'][sdf.index.size - 1]) + "', '" + \
+                           str(sdf['low'][sdf.index.size - 1]) + "', '" + \
+                           str(sdf['volume'][sdf.index.size - 1]) + "', '" + \
+                           str(sma_8[sdf.index.size - 1]) + "', '" + \
+                           str(min_volume) + "', '" + \
+                           str(avg_volume) + "', '" + \
+                           str(volume_multiplier) + "', '" + \
+                           str(wait_days_for_breakout) + "', '" + \
+                           str(fractional_upper_wick_size) + \
+                           "');"
+            # print("insert query: " + insert_query)
             cursor.execute(insert_query)
             cursor.close()
             conn.commit()
@@ -210,7 +247,7 @@ def print_upper_trend_lines(sdf, method_parameters):
 def is_already_scanned(cursor, job_details_array, itr):
     scan_date = job_details_array[itr]['scan_date']
     symbol = job_details_array[itr]['symbol']
-    select_breakout_trendline_1_scanned = "select stock_symbol, scan_date from breakout_trendline_1_scanned where stock_symbol = '" + symbol + "' and scan_date = '" + scan_date + "';"
+    select_breakout_trendline_1_scanned = "select stock_symbol, scan_date from alpha_1_scanned where stock_symbol = '" + symbol + "' and scan_date = '" + scan_date + "';"
     cursor.execute(select_breakout_trendline_1_scanned)
     rows = cursor.fetchall()
     if not rows:
@@ -220,7 +257,7 @@ def is_already_scanned(cursor, job_details_array, itr):
 
 def stock_scanned(conn, scan_date, symbol):
     cursor = conn.cursor()
-    insert_breakout_trendline_1_scanned = "insert into breakout_trendline_1_scanned (stock_symbol, scan_date) values ('" + symbol + "', '" + scan_date + "');"
+    insert_breakout_trendline_1_scanned = "insert into alpha_1_scanned (stock_symbol, scan_date) values ('" + symbol + "', '" + scan_date + "');"
     try:
         cursor.execute(insert_breakout_trendline_1_scanned)
     except:
@@ -230,9 +267,18 @@ def stock_scanned(conn, scan_date, symbol):
 
 
 def main():
+    start_date_of_scanning = datetime.today().strftime('%Y-%m-%d')
+    number_of_back_market_days = 1
+    scan_dates_array = scan_dates.get_valid_market_scan_dates_array(start_date_of_scanning, number_of_back_market_days)
+    scan_stocks_array = scan_stocks.get_scan_stocks_array(scan_stocks_category_array, None)
     job_and_lot = populate_array.populate_job_array_and_lot_index_array(scan_dates_array, scan_stocks_array)
     job_details_array = job_and_lot['job_details_array']
     lot_index_details_array = job_and_lot['lot_index_details_array']
+    # print("######################################################################################################")
+    # print(lot_index_details_array)
+    # print("######################################################################################################")
+    # print(job_details_array)
+    # return
     time_till_now = 0
     total_lot_number = 0
     non_false_lot_number = 0

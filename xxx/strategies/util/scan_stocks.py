@@ -18,21 +18,22 @@ def get_scan_stocks_array(category_array, limit):
     cursor = conn.cursor()
     select_equity_stocks = ""
     if len(category_array) == 0 and limit is None:
-        select_equity_stocks = "select id, symbol, nseToken from equityStocks;"
+        select_equity_stocks = "select id, symbol, category, nseToken from equityStocks;"
     elif len(category_array) == 0 and limit is not None:
-        select_equity_stocks = "select id, symbol, nseToken from equityStocks limit " + str(limit) + ";"
+        select_equity_stocks = "select id, symbol, category, nseToken from equityStocks limit " + str(limit) + ";"
     elif len(category_array) > 0 and limit is None:
         category_string = get_category_string(category_array)
-        select_equity_stocks = "select id, symbol, nseToken from equityStocks where " + category_string + ";"
+        select_equity_stocks = "select id, symbol, category, nseToken from equityStocks where " + category_string + ";"
     elif len(category_array) > 0 and limit is not None:
         category_string = get_category_string(category_array)
-        select_equity_stocks = "select id, symbol, nseToken from equityStocks where " + category_string + " limit " + str(limit) + ";"
+        select_equity_stocks = "select id, symbol, category, nseToken from equityStocks where " + category_string + " limit " + str(limit) + ";"
     # print("select_equity_stocks: " + select_equity_stocks)
     cursor.execute(select_equity_stocks)
-    for (id, symbol, nseToken) in cursor:
+    for (id, symbol, category, nseToken) in cursor:
         stock_detail = []
         stock_detail.append(symbol)
         stock_detail.append(nseToken)
+        stock_detail.append(str(category))
         scan_stocks_array.append(stock_detail)
     cursor.close()
     conn.close()

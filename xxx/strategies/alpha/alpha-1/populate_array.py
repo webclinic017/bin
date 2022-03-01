@@ -9,7 +9,8 @@ def populate_job_array(scan_dates_array, scan_stocks_array, job_details_array):
             job = {
                 "scan_date": scan_date,
                 "symbol": scan_stock[0],
-                "nse_token": scan_stock[1]
+                "nse_token": scan_stock[1],
+                "stock_category": scan_stock[2]
             }
             job_details_array.append(job)
 
@@ -47,6 +48,7 @@ def populate_historical_data_thread_and_method_parameters_array(
     scan_date = job_details_array[job_details_itr]['scan_date']
     symbol = job_details_array[job_details_itr]['symbol']
     nse_token = job_details_array[job_details_itr]['nse_token']
+    stock_category = job_details_array[job_details_itr]['stock_category']
 
     data_end_date = date(int(scan_date[0:4]), int(scan_date[5:7]), int(scan_date[8:10]))
     data_start_date = data_end_date - timedelta(days=(strategy_constant.number_of_days_prev_data_required - 1))
@@ -54,6 +56,7 @@ def populate_historical_data_thread_and_method_parameters_array(
     method_parameters = {
         "symbol": symbol,
         "nse_token": nse_token,
+        "stock_category": stock_category,
         "data_start_date": str(data_start_date),
         "data_end_date": str(data_end_date)
     }
