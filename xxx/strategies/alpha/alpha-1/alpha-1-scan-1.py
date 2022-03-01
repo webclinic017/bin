@@ -1,9 +1,9 @@
 ##################################################################################
 # should be run at around eod
 ##################################################################################
-
+base_directory = '/home/sss/Documents/bin/xxx/'
 import sys
-sys.path.append('../../util')
+sys.path.append(base_directory + 'strategies/util')
 import time
 import thread
 import connect
@@ -16,8 +16,8 @@ from stockstats import StockDataFrame
 from datetime import date, datetime, timedelta
 
 kite = connect.get_kite_connect_obj()
-local_data = open('../../../connect/base_path/local_data.txt', 'r').read()
-logger = connect.get_logger(local_data + '/logs/alpha-1-scan-1.log')
+local_data = open(base_directory + 'connect/base_path/local_data.txt', 'r').read()
+logger = connect.get_logger(local_data + '/logs/alpha-1.log')
 # scan_stocks_category_array = [5, 4, 3, 2, 1]
 scan_stocks_category_array = [5, 4, 3]
 max_percentage_change_per_day = 0.5
@@ -194,7 +194,7 @@ def print_upper_trend_lines(sdf, method_parameters):
             utl_found = True
             conn = connect.mysql_connection()
             cursor = conn.cursor()
-            insert_query = "insert into alpha_1_filtered (" \
+            insert_query = "insert into alpha_1_scan_1_filtered (" \
                            "stock_category, " \
                            "stock_symbol, " \
                            "breakout_date, " \
@@ -248,7 +248,7 @@ def print_upper_trend_lines(sdf, method_parameters):
 def is_already_scanned(cursor, job_details_array, itr):
     scan_date = job_details_array[itr]['scan_date']
     symbol = job_details_array[itr]['symbol']
-    select_breakout_trendline_1_scanned = "select stock_symbol, scan_date from alpha_1_scanned where stock_symbol = '" + symbol + "' and scan_date = '" + scan_date + "';"
+    select_breakout_trendline_1_scanned = "select stock_symbol, scan_date from alpha_1_scan_1_scanned where stock_symbol = '" + symbol + "' and scan_date = '" + scan_date + "';"
     cursor.execute(select_breakout_trendline_1_scanned)
     rows = cursor.fetchall()
     if not rows:
@@ -258,7 +258,7 @@ def is_already_scanned(cursor, job_details_array, itr):
 
 def stock_scanned(conn, scan_date, symbol):
     cursor = conn.cursor()
-    insert_breakout_trendline_1_scanned = "insert into alpha_1_scanned (stock_symbol, scan_date) values ('" + symbol + "', '" + scan_date + "');"
+    insert_breakout_trendline_1_scanned = "insert into alpha_1_scan_1_scanned (stock_symbol, scan_date) values ('" + symbol + "', '" + scan_date + "');"
     try:
         cursor.execute(insert_breakout_trendline_1_scanned)
     except:
@@ -347,4 +347,9 @@ def main():
 
 
 if __name__ == "__main__":
+    logger.info("alpha-1-scan-1.py started: " + str(datetime.today().strftime('%Y-%m-%d %H:%M:%S')))
+    start_time = time.time()
     main()
+    logger.info("alpha-1-scan-1.py ended: " + str(datetime.today().strftime('%Y-%m-%d %H:%M:%S')))
+    end_time = time.time()
+    logger.info("time consumed to run alpha-1-scan-1.py completely: " + str(end_time - start_time))
